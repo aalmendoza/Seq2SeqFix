@@ -1,5 +1,5 @@
 from lexer.utilities import *
-from pygments.lexers import get_lexer_for_filename
+from pygments.lexers import get_lexer_for_filename, get_lexer_by_name, guess_lexer
 from pygments import lex
 import re
 import argparse
@@ -27,15 +27,14 @@ def get_tokenization(lexedWoComments):
 
     return res
 
-def tokenize(sourcePath, strFlag, keepLines=False):    
-    fileContents = ""
-    with open(sourcePath, 'r') as f:
-        fileContents = ''.join(f.readlines())
+def tokenize_code(code, literal_handle=3, language=None):
+    if language is None:
+        lexer = guess_lexer(code)
+    else:
+        lexer = get_lexer_by_name(language)
 
-    lexer = get_lexer_for_filename(sourcePath)
-    tokens = lex(fileContents, lexer) # returns a generator of tuples
+    tokens = lex(code, lexer)
     tokensList = list(tokens)
-    language = languageForLexer(lexer)
 
     # Strip comments and alter strings
     lexedWoComments = tokensExceptTokenType(tokensList, Token.Comment)
@@ -43,21 +42,27 @@ def tokenize(sourcePath, strFlag, keepLines=False):
     lexedWoComments = fixTypes(lexedWoComments, language) #Alter the pygments lexer types to be more comparable between our languages
     lexedWoComments = convertNamespaceTokens(lexedWoComments, language)
 
-    if(strFlag == 0):
+    if(literal_handle == 0):
         lexedWoComments = modifyStrings(lexedWoComments, underscoreString)
-    elif(strFlag == 1):
+    elif(literal_handle == 1):
         lexedWoComments = modifyStrings(lexedWoComments, singleStringToken)
-    elif(strFlag == 2):
+    elif(literal_handle == 2):
         lexedWoComments = modifyStrings(lexedWoComments, spaceString)
-    elif(strFlag == 3):
+    elif(literal_handle == 3):
         lexedWoComments = modifyStrings(lexedWoComments, singleStringToken)
         lexedWoComments = collapseStrings(lexedWoComments)
         lexedWoComments = modifyNumbers(lexedWoComments, singleNumberToken)
 
-    if(len(lexedWoComments) == 0):
-        return ""
-    else:
-        return get_tokenization(lexedWoComments)
+    return get_tokenization(lexedWoComments)
+
+
+def tokenize_file(source_file, literal_handle):
+    code = ""
+    with open(source_file, 'r') as f:
+        code = ''.join(f.readlines())
+
+    language = languageForLexer(lexer)
+    return tokenize_code(code, literal_handle, language)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -70,5 +75,5 @@ if __name__ == "__main__":
                             "3 -> collapse strings to <str> and collapses numbers to a type as well.\n")
 
     args = parser.parse_args()
-    lexed = tokenize(args.source_file, args.literal_handle)
+    lexed = tokenize_file(args.source_file, args.literal_handle)
     print(lexed)
